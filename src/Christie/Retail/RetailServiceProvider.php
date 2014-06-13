@@ -21,7 +21,9 @@ class RetailServiceProvider extends ServiceProvider {
 		$this->package('christie/retail');
 
 		// $bones = \App::make('bones');
-		\Bones::registerFieldType('Price', 'Christie\Retail\Fieldtypes\PriceField');
+		\Bones::registerFieldType('Retail', 'price', 'Christie\Retail\Fieldtypes\PriceField');
+		\Bones::registerFieldType('Retail', 'order_details', 'Christie\Retail\Fieldtypes\OrderDetailsField');
+
 		\Bones::registerWidget('basket', 'Christie\Retail\Widgets\BasketWidget');
 	}
 

@@ -2,6 +2,10 @@
 
 namespace Christie\Retail\Libraries;
 
+use \App;
+use \File;
+use \Mail;
+use \mPDF;
 use \Session;
 
 class Basket {
@@ -17,7 +21,7 @@ class Basket {
     $basket = array(
         array(
             :entry_id   => x,
-            :count      => y,
+            :quantity   => y,
             :variation  => z (optional)
         )
     );
@@ -28,8 +32,15 @@ class Basket {
         // Pull the basket out of the session, if there is one
         if (Session::has('basket'))
             $this->basket = Session::get('basket');
+    }
 
-        $this->add( \Entry::find(32), 1 );
+    /*
+     *  Remove all items from the basket
+     */
+    public function clear() {
+        $this->basket = array();
+        $this->entries = null;
+        $this->saveBasketToSession();
     }
 
     /*
@@ -80,9 +91,26 @@ class Basket {
     }
 
     /*
+     *  Return the total number of items
+     */
+    public function totalItems() {
+        $total = 0;
+        foreach ($this->basket as $basket) {
+            $total += $basket['quantity'];
+        }
+
+        return $total;
+    }
+
+    /*
      *  Add an entry to the basket
      */
     public function add($entry, $quantity = 1, $variation = null) {
+
+        // Check that the entry has enough available
+        if (!$entry->price->hasAvailable($quantity, $variation))
+            return false;
+
         // Wipe the cache of entires, in case there is one
         $this->entries = null;
 
@@ -108,6 +136,8 @@ class Basket {
 
         // Add save the basket to the session
         $this->saveBasketToSession();
+
+        return true;
     }
 
     /*
@@ -152,7 +182,67 @@ class Basket {
         }
 
         return $ids;
+    }
 
+    /*
+     *  Save the basket as a complete order
+     */
+    public function commit($order_entry, $payment_ref) {
+        // Reduct the availability of all items
+        foreach($this->items() as $item)
+            $item->price->commit();
+
+        // Update the order record
+        $order_entry->status = \Christie\Bones\Libraries\Bones::STATUS_PUBLISHED;
+        $order_entry->save();
+
+        // Save the order details
+        $details             = $order_entry->order_details;
+        $details->populate(array(
+            'items'       => $this->basket,
+            'payment_ref' => $payment_ref,
+            'total'       => $this->total(),
+            'discount'    => 0
+        ));
+        $details->save();
+
+
+        // Send an invoice
+        $this->emailReceipt( $order_entry, $this->items() );
+
+        $this->clear();
+    }
+
+    /*
+     *  Send an invoice to the registered address
+     */
+    public function emailReceipt($order_entry, $items) {
+        $bones = App::make('bones');
+
+        $email = $bones->view('receipt', array(
+                'order' => $order_entry,
+                'items' => $items
+            ), 'retail')->render();
+
+        $mpdf = new mPDF('c');
+
+        // Add the CSS file
+        $stylesheet = File::get( public_path('packages/christie/bones/bootstrap/css/bootstrap.min.css') );
+        $mpdf->WriteHTML($stylesheet, 1);
+
+        $pdf_path = storage_path('receipts/'.$order_entry->id.'.pdf');
+
+        // Generate the PDF
+        $mpdf->WriteHTML($email, 0);
+        $mpdf->Output( $pdf_path );
+
+        Mail::send( 'emails.receipt', array('name' => 'Hello'), function($message) use($order_entry, $pdf_path) {
+            $message->from('us@example.com', 'Laravel');
+
+            $message->to( (string)$order_entry->email, $order_entry->name )->subject('Receipt');
+
+            $message->attach($pdf_path);
+        });
     }
 
 }
