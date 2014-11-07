@@ -14,10 +14,7 @@
     },
     "autoload": {
         "classmap": [
-            "src/migrations",
-            "src/Christie/Retail",
-            "src/Christie/Retail/Facades",
-            "src/Christie/Retail/Libraries"
+            "src/migrations"
         ],
         "psr-0": {
             "Christie\\Retail\\": "src/"

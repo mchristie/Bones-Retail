@@ -1,4 +1,5 @@
-<?php namespace Christie\Retail;
+<?php
+namespace Christie\Retail;
 
 use Illuminate\Support\ServiceProvider;
 
