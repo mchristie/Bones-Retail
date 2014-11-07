@@ -25,6 +25,12 @@ class RetailServiceProvider extends ServiceProvider {
 		\Bones::registerFieldType('Retail', 'order_details', 'Christie\Retail\Fieldtypes\OrderDetailsField');
 
 		\Bones::registerWidget('basket', 'Christie\Retail\Widgets\BasketWidget');
+
+		\Bones::registerComponent(
+			'retail',
+			'\Christie\Retail\Components\RetailComponent',
+			'\Christie\Retail\RetailController@showIndex'
+		);
 	}
 
 	/**
@@ -34,12 +40,11 @@ class RetailServiceProvider extends ServiceProvider {
 	 */
 	public function register()
 	{
-
+		$this->app->bindShared('retail', function($app) {
+            return new Components\RetailComponent($app['bones']);
+        });
         $this->app->bindShared('basket', function($app) {
             return new Libraries\Basket();
-        });
-		$this->app->bindShared('retail', function($app) {
-            return new Libraries\Retail( $app['basket'] );
         });
 	}
 
