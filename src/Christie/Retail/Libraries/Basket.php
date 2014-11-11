@@ -7,6 +7,7 @@ use \File;
 use \Mail;
 use \mPDF;
 use \Session;
+use \Config;
 
 class Basket {
 
@@ -224,25 +225,31 @@ class Basket {
                 'items' => $items
             ), 'retail')->render();
 
-        $mpdf = new mPDF('c');
+        try {
+            $mpdf = new mPDF('c');
 
-        // Add the CSS file
-        $stylesheet = File::get( public_path('packages/christie/bones/bootstrap/css/bootstrap.min.css') );
-        $mpdf->WriteHTML($stylesheet, 1);
+            // Add the CSS file
+            $stylesheet = File::get( public_path('packages/christie/bones/bootstrap/css/bootstrap.min.css') );
+            $mpdf->WriteHTML($stylesheet, 1);
 
-        $pdf_path = storage_path('receipts/'.$order_entry->id.'.pdf');
+            $pdf_path = storage_path('receipts/'.$order_entry->id.'.pdf');
 
-        // Generate the PDF
-        $mpdf->WriteHTML($email, 0);
-        $mpdf->Output( $pdf_path );
+            // Generate the PDF
+            $mpdf->WriteHTML( $email, 0 );
+            $mpdf->Output( $pdf_path );
 
-        Mail::send( 'emails.receipt', array('name' => 'Hello'), function($message) use($order_entry, $pdf_path) {
-            $message->from('us@example.com', 'Laravel');
+            Mail::send( 'emails.receipt', array('name' => Config::get('mail.from.name')), function($message) use($order_entry, $pdf_path) {
+                $message->from(Config::get('mail.from.address'), Config::get('mail.from.name'));
 
-            $message->to( (string)$order_entry->email, $order_entry->name )->subject('Receipt');
+                $message->to( (string)$order_entry->email, $order_entry->name )->subject('Can You Escape? Booking confirmation.');
 
-            $message->attach($pdf_path);
-        });
+                $message->attach($pdf_path);
+            });
+
+        } catch(Exception $e) {
+            // Don't prevent the page rendering if we failed
+        }
+
     }
 
 }
